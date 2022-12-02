@@ -1,3 +1,17 @@
+/*
+Скажите пожалуйста, я понимаю что в авторском решении скорее всего хороший код и по памяти и по времени, почему не стоит после каждого решения просто брать код оттуда? :)
+А ещё к примеру у меня count в подсчёте TF был не очень (word_to_document_freqs_[i].insert({ document_id, (double)count(words.begin(), words.end(), i) / words.size() });),
+если было бы 8 одинаковых слов, то он на каждой итерации перезаписывал одно и то же слово и его TF.
+Но если бы я добавлял каждое слово в set и сравнивал бы, встречалось ли слово, если встречалось пропустить итерацию и идти к след.слову.
+Так получается и решение моё, и позволяет не ходить по тем же словам несколько раз. Но я не понимаю, что было бы быстрее, пройти просто по всем словам и суммировать TF.
+Либо каждый раз вызывать операцию count, а к примеру слов миллион, и каждый раз он рыщет в поисках вхождений слов. А так же к примеру все миллион слов одинаковые,
+count безусловно быстрее обычного линейного подсчета, или не быстрее?
+O(n) - сложность алгоритма подсчета TF сейчас. (где n - количество итераций цикла for)
+O(n*m) - сложность алгоритма с count. (где n - количество итераций цикла for, а m количество итераций пробежки по вектору операцией count)
+Правильно? Получается не быстрее через count в любом случае :)
+*/
+
+
 #include <algorithm>
 #include <iostream>
 #include <set>
@@ -65,8 +79,9 @@ public:
 
 	void AddDocument(int document_id, const string& document) {				//Метод изменения поля word_to_document_freqs_ (добавление в контейнер map документов)
 		const vector<string> words = SplitIntoWordsNoStop(document);
-		for (const auto& i : words) {
-			word_to_document_freqs_[i].insert({ document_id, (double)count(words.begin(), words.end(), i) / words.size() });   //count-том ищу количество вхождений слов в документ, затем делю на количество слов в документе. Вот и нашли TF
+		const double inv_word_count = 1.0 / words.size();
+		for (const auto& word : words) {
+			word_to_document_freqs_[word][document_id] += inv_word_count;   //Добавляю и суммирую TF одинаковых слов, вот и нашли TF
 		}
 
 	}
@@ -100,6 +115,10 @@ private:
 		return stop_words_.count(word) > 0;
 	}
 
+	double ComputeWordInverseDocumentFreq(const string& word) const {
+		return log(static_cast<double>(document_count_) / word_to_document_freqs_.at(word).size());
+	}
+
 	vector<string> SplitIntoWordsNoStop(const string& text) const {			//Константный метод возвращающий вектор слов без стоп-слов
 		vector<string> words;
 		for (const string& word : SplitIntoWords(text)) {
@@ -126,23 +145,23 @@ private:
 		map<int, double> document_to_relevance;
 		for (const auto& word : query_words.plus_words) {       //Берём плюс-слово из запроса
 			if (word_to_document_freqs_.count(word)) {			//Ищем его в базе документов
-				double IDF = log((double)document_count_ / word_to_document_freqs_.find(word)->second.size());  //Если нашли считаем IDF слова (Количество док-тов/количество встречаемости слова в документах)
-				for (const auto& i : word_to_document_freqs_.find(word)->second) {         //Бегаем по id документов и добавляем в document_to_relevance [id] = relevance
-					document_to_relevance[i.first] += IDF * i.second;
+				double IDF = ComputeWordInverseDocumentFreq(word);    //Если нашли считаем IDF слова (Количество док-тов/количество встречаемости слова в документах)
+				for (const auto& [doc_id, tf] : word_to_document_freqs_.at(word)) {         //Бегаем по id документов и добавляем в document_to_relevance [id] = relevance
+					document_to_relevance[doc_id] += IDF * tf;
 				}
 			}
 		}
 		for (const auto& word : query_words.minus_words) {		//Берём минус-слово
 			if (!word.empty()) {
 				if (word_to_document_freqs_.count(word)) {
-					for (const auto& i : word_to_document_freqs_.find(word)->second) {		//Удаляем документ где встречалось слово
-						document_to_relevance.erase(i.first);
+					for (const auto& [doc_id, tf] : word_to_document_freqs_.at(word)) {		//Удаляем документ где встречалось слово
+						document_to_relevance.erase(doc_id);
 					}
 				}
 			}
 		}
-		for (const auto& i : document_to_relevance) {
-			matched_documents.push_back({ i.first, i.second });
+		for (const auto& [doc_id, relevance] : document_to_relevance) {
+			matched_documents.push_back({ doc_id, relevance });
 		}
 		return matched_documents;
 	}
