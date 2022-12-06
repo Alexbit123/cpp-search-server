@@ -6,7 +6,9 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <numeric>
 
+constexpr auto EPS = 1e-6;                //либо #define EPS 1e-6, где #define поидее обычная подстановка текста на этапе препроцессора, когда constexpr совершенно сложнее и в понимании, и в комплектации использования
 using namespace std;
 
 const int MAX_RESULT_DOCUMENT_COUNT = 5;
@@ -87,7 +89,7 @@ public:
         auto matched_documents = FindAllDocuments(query, document_predicate);
         sort(matched_documents.begin(), matched_documents.end(),
             [](const auto& lhs, const auto& rhs) {
-                if (abs(lhs.relevance - rhs.relevance) < 1e-6) {
+                if (abs(lhs.relevance - rhs.relevance) < EPS) {
                     return lhs.rating > rhs.rating;
                 }
                 else {
@@ -160,11 +162,7 @@ private:
         if (ratings.empty()) {
             return 0;
         }
-        int rating_sum = 0;
-        for (const int rating : ratings) {
-            rating_sum += rating;
-        }
-        return rating_sum / static_cast<int>(ratings.size());
+        return accumulate(ratings.begin(), ratings.end(), 0) / static_cast<int>(ratings.size());
     }
 
     struct QueryWord {
