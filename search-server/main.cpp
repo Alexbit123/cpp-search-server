@@ -7,6 +7,7 @@
 #include <utility>
 #include <vector>
 #include <stdexcept>
+#include <numeric>
 
 using namespace std;
 
@@ -84,10 +85,10 @@ public:
 	template <typename StringContainer>
 	explicit SearchServer(const StringContainer& stop_words)
 		: stop_words_(MakeUniqueNonEmptyStrings(stop_words)) {
-		for (const auto& word : stop_words_) {
-			if (!IsValidWord(word)) {
-				throw invalid_argument("Стоп слова не были добавлены, так как содержат спецсимволы");
-			}
+		if (any_of(stop_words_.begin(), stop_words_.end(), [](string word) {
+			return !IsValidWord(word);
+			})) {
+			throw invalid_argument("Стоп слова не были добавлены, так как содержат спецсимволы");
 		}
 	}
 
@@ -102,11 +103,10 @@ public:
 		if (document_id < 0) {
 			throw invalid_argument("Попытка добавить документ с отрицательным id;");
 		}
-		if (GetDocumentId(document_id) >= 0) {
-			if (documents_.count(document_id) != 0) {
-				throw invalid_argument("Попытка добавить документ c id ранее добавленного документа");
-			}
+		if (documents_.count(document_id) != 0) {
+			throw invalid_argument("Попытка добавить документ c id ранее добавленного документа");
 		}
+		document_id_.push_back(document_id);                                      //Добавил id документа в вектор id документов. Теперь если надо можно вызвать функцию GetDocumentId по индексу, но мне в моей программе это не применилось, т.к. индекс брать не от куда
 		const vector<string> words = SplitIntoWordsNoStop(document);
 		const double inv_word_count = 1.0 / words.size();
 		for (const string& word : words) {
@@ -121,34 +121,21 @@ public:
 	template <typename DocumentPredicate>
 	vector<Document>  FindTopDocuments(const string& raw_query,
 		DocumentPredicate document_predicate) const {
-		if (IsValidWord(raw_query)) {
-			for (size_t i = 0; i < raw_query.size() - 1; ++i) {
-				if (raw_query[i] == '-' && raw_query[i + 1] == '-') {
-					throw invalid_argument("Наличие более чем одного минуса перед словами, которых не должно быть в искомых документах");
-				}
-				if (raw_query[raw_query.size() - 1] == '-') {
-					throw invalid_argument("Отсутствие текста после символа «минус» в поисковом запросе");
-				}
-			}
-			const Query query = ParseQuery(raw_query);
-			auto matched_documents = FindAllDocuments(query, document_predicate);
 
-			sort(matched_documents.begin(), matched_documents.end(),
-				[](const Document& lhs, const Document& rhs) {
-					if (abs(lhs.relevance - rhs.relevance) < EPS) {
-						return lhs.rating > rhs.rating;
-					}
-					else {
-						return lhs.relevance > rhs.relevance;
-					}
-				});
-			if (matched_documents.size() > MAX_RESULT_DOCUMENT_COUNT) {
-				matched_documents.resize(MAX_RESULT_DOCUMENT_COUNT);
-			}
-			return matched_documents;
+		const Query query = ParseQuery(raw_query);
+		auto matched_documents = FindAllDocuments(query, document_predicate);
+
+		sort(matched_documents.begin(), matched_documents.end(),
+			[](const Document& lhs, const Document& rhs) {
+				if (abs(lhs.relevance - rhs.relevance) < EPS) {
+					return lhs.rating > rhs.rating;
+				}
+				return lhs.relevance > rhs.relevance;
+			});
+		if (matched_documents.size() > MAX_RESULT_DOCUMENT_COUNT) {
+			matched_documents.resize(MAX_RESULT_DOCUMENT_COUNT);
 		}
-		else throw invalid_argument("Наличие недопустимых символов (с кодами от 0 до 31) в тексте добавляемого документа.");
-
+		return matched_documents;
 	}
 
 	vector<Document> FindTopDocuments(const string& raw_query, DocumentStatus status) const {
@@ -167,49 +154,35 @@ public:
 	}
 
 	int GetDocumentId(int index) const {
-		if (GetDocumentCount() >= index && index >= 0) {
-			return index;
-		}
-		else {
-			throw out_of_range("Индекс переданного документа выходит за пределы допустимого диапазона");
-		}
+		return document_id_.at(index);
 	}
 
 	tuple<vector<string>, DocumentStatus> MatchDocument(const string& raw_query,
 		int document_id) const {
-		if (IsValidWord(raw_query)) {
-			for (size_t i = 0; i < raw_query.size() - 1; ++i) {
-				if (raw_query[i] == '-' && raw_query[i + 1] == '-') {
-					throw invalid_argument("Наличие более чем одного минуса перед словами, которых не должно быть в искомых документах");
-				}
-				if (raw_query[raw_query.size() - 1] == '-') {
-					throw invalid_argument("Отсутствие текста после символа «минус» в поисковом запросе");
-				}
+		const Query query = ParseQuery(raw_query);
+		vector<string> matched_words;
+		for (const string& word : query.plus_words) {
+			if (word_to_document_freqs_.count(word) == 0) {
+				continue;
 			}
-			const Query query = ParseQuery(raw_query);
-			vector<string> matched_words;
-			for (const string& word : query.plus_words) {
-				if (word_to_document_freqs_.count(word) == 0) {
-					continue;
-				}
-				if (word_to_document_freqs_.at(word).count(document_id)) {
-					matched_words.push_back(word);
-				}
+			if (word_to_document_freqs_.at(word).count(document_id)) {
+				matched_words.push_back(word);
 			}
-			for (const string& word : query.minus_words) {
-				if (word_to_document_freqs_.count(word) == 0) {
-					continue;
-				}
-				if (word_to_document_freqs_.at(word).count(document_id)) {
-					matched_words.clear();
-					break;
-				}
-			}
-			return tuple(matched_words, documents_.at(document_id).status);
 		}
-		else throw invalid_argument("Наличие недопустимых символов (с кодами от 0 до 31) в тексте добавляемого документа.");
-
+		for (const string& word : query.minus_words) {
+			if (word_to_document_freqs_.count(word) == 0) {
+				continue;
+			}
+			if (word_to_document_freqs_.at(word).count(document_id)) {
+				matched_words.clear();
+				break;
+			}
+		}
+		return tuple(matched_words, documents_.at(document_id).status);
 	}
+
+
+
 
 private:
 	struct DocumentData {
@@ -219,6 +192,7 @@ private:
 	const set<string> stop_words_;
 	map<string, map<int, double>> word_to_document_freqs_;
 	map<int, DocumentData> documents_;
+	vector<int> document_id_;
 
 	bool IsStopWord(const string& word) const {
 		return stop_words_.count(word) > 0;
@@ -245,11 +219,7 @@ private:
 		if (ratings.empty()) {
 			return 0;
 		}
-		int rating_sum = 0;
-		for (const int rating : ratings) {
-			rating_sum += rating;
-		}
-		return rating_sum / static_cast<int>(ratings.size());
+		return accumulate(ratings.begin(), ratings.end(), 0) / static_cast<int>(ratings.size());
 	}
 
 	struct QueryWord {
@@ -274,19 +244,30 @@ private:
 	};
 
 	Query ParseQuery(const string& text) const {
-		Query query;
-		for (const string& word : SplitIntoWords(text)) {
-			const QueryWord query_word = ParseQueryWord(word);
-			if (!query_word.is_stop) {
-				if (query_word.is_minus) {
-					query.minus_words.insert(query_word.data);
+		if (IsValidWord(text)) {
+			for (size_t i = 0; i < text.size() - 1; ++i) {
+				if (text[i] == '-' && text[i + 1] == '-') {
+					throw invalid_argument("Наличие более чем одного минуса перед словами, которых не должно быть в искомых документах");
 				}
-				else {
-					query.plus_words.insert(query_word.data);
+				if (text[text.size() - 1] == '-') {
+					throw invalid_argument("Отсутствие текста после символа «минус» в поисковом запросе");
 				}
 			}
+			Query query;
+			for (const string& word : SplitIntoWords(text)) {
+				const QueryWord query_word = ParseQueryWord(word);
+				if (!query_word.is_stop) {
+					if (query_word.is_minus) {
+						query.minus_words.insert(query_word.data);
+					}
+					else {
+						query.plus_words.insert(query_word.data);
+					}
+				}
+			}
+			return query;
 		}
-		return query;
+		else throw invalid_argument("Наличие недопустимых символов (с кодами от 0 до 31) в тексте добавляемого документа.");
 	}
 
 	// Existence required
