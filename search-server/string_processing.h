@@ -17,6 +17,3 @@ std::set<std::string> MakeUniqueNonEmptyStrings(const StringContainer& strings) 
     return non_empty_strings;
 }
 
-void PrintDocument(const Document& document);
-void PrintMatchDocumentResult(int document_id, const std::vector<std::string>& words, DocumentStatus status);
-

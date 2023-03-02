@@ -5,6 +5,7 @@
 #include <tuple>
 #include <map>
 #include <cmath>
+#include <numeric>
 
 const int MAX_RESULT_DOCUMENT_COUNT = 5;
 constexpr auto EPS = 1e-6;
