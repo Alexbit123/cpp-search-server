@@ -29,6 +29,6 @@ public:
 
 private:
     const Clock::time_point start_time_ = Clock::now();
-    std::ostream& log_out;
     std::string name_function;
+    std::ostream& log_out;
 };
