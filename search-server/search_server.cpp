@@ -138,15 +138,16 @@ std::set<int, std::map<std::string, double>>::const_iterator SearchServer::end()
 }
 
 const std::map<std::string, double>& SearchServer::GetWordFrequencies(int document_id) const {
+    static std::map<std::string, double> word_frequencies;
     if (document_ids_freqs_.count(document_id)) {
         return document_ids_freqs_.at(document_id);
     }
-    return {};
+    return word_frequencies;
 }
 
 void SearchServer::RemoveDocument(int document_id) {
 
-    for (auto [i, container] : word_to_document_freqs_) {
+    for (auto& [i, container] : word_to_document_freqs_) {
         container.erase(document_id);
     }
     document_ids_freqs_.erase(document_id);
