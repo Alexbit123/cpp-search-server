@@ -146,14 +146,19 @@ const std::map<std::string, double>& SearchServer::GetWordFrequencies(int docume
 }
 
 void SearchServer::RemoveDocument(int document_id) {
-
     for (auto& [i, container] : word_to_document_freqs_) {
         container.erase(document_id);
     }
     document_ids_freqs_.erase(document_id);
     documents_.erase(document_id);
     document_ids_.erase(document_id);
+    
 }
+
+//void SearchServer::RemoveDocument(std::execution::sequenced_policy, int document_id) {
+//    RemoveDocument(document_id);
+//}
+
 
 void AddDocument(SearchServer& search_server, int document_id, const std::string& document,
     DocumentStatus status, const std::vector<int>& ratings) {

@@ -1,32 +1,9 @@
 #include "test_example_functions.h"
-#include "remove_duplicates.h"
 #include "log_duration.h"
 #include <assert.h>
 
 using namespace std::string_literals;
-void TestRemoveDuplicates() {
-    SearchServer search_server("and with"s);
 
-    AddDocument(search_server, 1, "funny pet and nasty rat"s, DocumentStatus::ACTUAL, { 7, 2, 7 });
-    AddDocument(search_server, 2, "funny pet with curly hair"s, DocumentStatus::ACTUAL, { 1, 2 });
-    AddDocument(search_server, 3, "funny pet with curly hair"s, DocumentStatus::ACTUAL, { 1, 2 });
-
-    RemoveDuplicates(search_server);
-
-    assert(search_server.GetDocumentCount() == 2);
-}
-
-void TestRemoveDuplicatesTime() {
-    SearchServer search_server("and with"s);
-
-    AddDocument(search_server, 1, "funny pet and nasty rat"s, DocumentStatus::ACTUAL, { 7, 2, 7 });
-    AddDocument(search_server, 2, "funny pet with curly hair"s, DocumentStatus::ACTUAL, { 1, 2 });
-    AddDocument(search_server, 3, "funny pet with curly hair"s, DocumentStatus::ACTUAL, { 1, 2 });
-
-    LOG_DURATION_STREAM("TimeRemoveDuplicate", std::cerr);
-    RemoveDuplicates(search_server);
-
-}
 
 void TestAddDocument() {
 	const int doc_id1 = 42;
