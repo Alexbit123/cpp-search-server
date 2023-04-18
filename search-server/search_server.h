@@ -7,6 +7,7 @@
 #include <cmath>
 #include <numeric>
 #include <execution>
+#include <list>
 
 const int MAX_RESULT_DOCUMENT_COUNT = 5;
 constexpr auto EPS = 1e-6;
@@ -23,7 +24,6 @@ public:
 
 	void RemoveDocument(int document_id);
 
-	//void RemoveDocument(std::execution::sequenced_policy, int document_id);
 	template<typename ExecutionPolicy>
 	void RemoveDocument(ExecutionPolicy parallel, int document_id);
 
@@ -36,7 +36,6 @@ public:
 	std::vector<Document> FindTopDocuments(const std::string& raw_query) const;
 
 	int GetDocumentCount() const;
-	//int GetDocumentId(int index) const;
 
 	std::set<int, std::map<std::string, double>>::const_iterator begin() const;
 
@@ -45,6 +44,14 @@ public:
 	const std::map<std::string, double>& GetWordFrequencies(int document_id) const;
 
 	std::tuple<std::vector<std::string>, DocumentStatus> MatchDocument(const std::string& raw_query,
+		int document_id) const;
+
+	std::tuple<std::vector<std::string>, DocumentStatus> MatchDocument(std::execution::sequenced_policy parallel, 
+		const std::string& raw_query,
+		int document_id) const;
+
+	std::tuple<std::vector<std::string>, DocumentStatus> MatchDocument(std::execution::parallel_policy parallel, 
+		const std::string& raw_query,
 		int document_id) const;
 private:
 	struct DocumentData {
@@ -77,7 +84,14 @@ private:
 		std::set<std::string> minus_words;
 	};
 
+	struct QueryParallel {
+		std::vector<std::string> plus_words;
+		std::vector<std::string> minus_words;
+	};
+
 	Query ParseQuery(const std::string& text) const;
+
+	QueryParallel ParseQuery(std::execution::parallel_policy& parallel, const std::string& text) const;
 	// Existence required
 	double ComputeWordInverseDocumentFreq(const std::string& word) const;
 
@@ -85,30 +99,6 @@ private:
 	std::vector<Document> FindAllDocuments(const Query& query,
 		DocumentPredicate document_predicate) const;
 };
-
-template <typename ExecutionPolicy>
-void SearchServer::RemoveDocument(ExecutionPolicy parallel, int document_id) {
-	std::vector<const std::string*> words;
-	words.reserve(document_ids_freqs_.count(document_id));
-	//std::transform(parallel, document_ids_freqs_.at(document_id).begin(),
-	//	document_ids_freqs_.at(document_id).end(), words.begin(), [](auto& buf) {
-	//		return &buf.first;
-	//	});
-
-	for (auto& [word, _] : document_ids_freqs_.at(document_id)) {
-		words.push_back(&word);
-	}
-	std::for_each(parallel, words.begin(), words.end(),
-		[&](auto& word) {
-			if (word_to_document_freqs_.count(*word) > 0) {
-				word_to_document_freqs_.at(*word).erase(document_id);
-			}
-		});
-	document_ids_freqs_.erase(document_id);
-	documents_.erase(document_id);
-	document_ids_.erase(document_id);
-
-}
 
 template <typename StringContainer>
 SearchServer::SearchServer(const StringContainer& stop_words)
@@ -170,6 +160,31 @@ std::vector<Document> SearchServer::FindAllDocuments(const Query& query,
 	}
 	return matched_documents;
 }
+
+template <typename ExecutionPolicy>
+void SearchServer::RemoveDocument(ExecutionPolicy parallel, int document_id) {
+	std::vector<const std::string*> words;
+	words.reserve(document_ids_freqs_.count(document_id));
+	//std::transform(parallel, document_ids_freqs_.at(document_id).begin(),
+	//	document_ids_freqs_.at(document_id).end(), words.begin(), [](auto& buf) {
+	//		return &buf.first;
+	//	});
+
+	for (auto& [word, _] : document_ids_freqs_.at(document_id)) {
+		words.push_back(&word);
+	}
+	std::for_each(parallel, words.begin(), words.end(),
+		[&](auto& word) {
+			if (word_to_document_freqs_.count(*word) > 0) {
+				word_to_document_freqs_.at(*word).erase(document_id);
+			}
+		});
+	document_ids_freqs_.erase(document_id);
+	documents_.erase(document_id);
+	document_ids_.erase(document_id);
+
+}
+
 
 void AddDocument(SearchServer& search_server, int document_id, const std::string& document,
 	DocumentStatus status, const std::vector<int>& ratings);
