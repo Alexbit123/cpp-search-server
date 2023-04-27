@@ -1,6 +1,5 @@
-#include "search_server.h"
+﻿#include "search_server.h"
 #include "log_duration.h"
-#include "process_queries.h"
 #include <execution>
 #include <iostream>
 #include <random>
@@ -12,7 +11,7 @@ string GenerateWord(mt19937& generator, int max_length) {
     string word;
     word.reserve(length);
     for (int i = 0; i < length; ++i) {
-        word.push_back(uniform_int_distribution('a', 'z')(generator));
+        word.push_back(uniform_int_distribution(0, 26)(generator) + 'a');
     }
     return word;
 }
@@ -64,7 +63,7 @@ int main() {
     const auto documents = GenerateQueries(generator, dictionary, 10'000, 70);
     SearchServer search_server(dictionary[0]);
     for (size_t i = 0; i < documents.size(); ++i) {
-        search_server.AddDocument(i, documents[i], DocumentStatus::ACTUAL, {1, 2, 3});
+        search_server.AddDocument(i, documents[i], DocumentStatus::ACTUAL, { 1, 2, 3 });
     }
     const auto queries = GenerateQueries(generator, dictionary, 100, 70);
     TEST(seq);

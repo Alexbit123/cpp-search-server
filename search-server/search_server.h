@@ -13,6 +13,9 @@
 
 const int MAX_RESULT_DOCUMENT_COUNT = 5;
 constexpr auto EPS = 1e-6;
+constexpr size_t THREAD_COUNT = 6;
+
+using TapleWordsStatus = std::tuple<std::vector<std::string_view>, DocumentStatus>;
 
 class SearchServer {
 public:
@@ -21,7 +24,7 @@ public:
 	explicit SearchServer(std::string stop_words_text);
 	explicit SearchServer(std::string_view stop_words_text);
 
-	void AddDocument(int document_id, const std::string_view& document, DocumentStatus status,
+	void AddDocument(int document_id, std::string_view document, DocumentStatus status,
 		const std::vector<int>& ratings);
 
 	void RemoveDocument(int document_id);
@@ -51,12 +54,12 @@ public:
 
 	const std::map<std::string_view, double>& GetWordFrequencies(int document_id) const;
 
-	std::tuple<std::vector<std::string_view>, DocumentStatus> MatchDocument(std::string_view raw_query,
+	TapleWordsStatus MatchDocument(std::string_view raw_query,
 		int document_id) const;
-	std::tuple<std::vector<std::string_view>, DocumentStatus> MatchDocument(std::execution::sequenced_policy parallel, 
+	TapleWordsStatus MatchDocument(std::execution::sequenced_policy parallel,
 		std::string_view raw_query,
 		int document_id) const;
-	std::tuple<std::vector<std::string_view>, DocumentStatus> MatchDocument(std::execution::parallel_policy parallel, 
+	TapleWordsStatus MatchDocument(std::execution::parallel_policy parallel,
 		std::string_view raw_query,
 		int document_id) const;
 private:
@@ -71,11 +74,11 @@ private:
 	std::map<int, DocumentData> documents_;
 	std::map<int, std::map<std::string_view, double>> document_ids_freqs_;
 	std::set<int> document_ids_;
-	std::map<int, std::vector<std::string>> words;
+	std::set<std::string> words;
 
-	bool IsStopWord(const std::string_view& word) const;
+	bool IsStopWord(std::string_view word) const;
 
-	static bool IsValidWord(const std::string_view& word);
+	static bool IsValidWord(std::string_view word);
 
 	std::vector<std::string_view> SplitIntoWordsNoStop(std::string_view text) const;
 
@@ -158,7 +161,7 @@ std::vector<Document> SearchServer::FindTopDocuments(ExecutionPolicy&& policy, s
 template <typename DocumentPredicate>
 std::vector<Document> SearchServer::FindAllDocuments(std::execution::parallel_policy, const Query& query,
 	DocumentPredicate document_predicate) const {
-	ConcurrentMap<int, double> document_to_relevance(6);
+	ConcurrentMap<int, double> document_to_relevance(THREAD_COUNT);
 	for_each(std::execution::par, query.plus_words.begin(), query.plus_words.end(),
 		[&](auto& word) {
 			if (word_to_document_freqs_.count(word) != 0) {
@@ -223,9 +226,9 @@ std::vector<Document> SearchServer::FindAllDocuments(std::execution::sequenced_p
 	return matched_documents;
 }
 
-void AddDocument(SearchServer& search_server, int document_id, const std::string_view& document,
+void AddDocument(SearchServer& search_server, int document_id, std::string_view document,
 	DocumentStatus status, const std::vector<int>& ratings);
 
-void FindTopDocuments(const SearchServer& search_server, const std::string_view& raw_query);
+void FindTopDocuments(const SearchServer& search_server, std::string_view raw_query);
 
-void MatchDocuments(const SearchServer& search_server, const std::string_view& query);
+void MatchDocuments(const SearchServer& search_server, std::string_view query);

@@ -6,7 +6,7 @@
 class RequestQueue {
 public:
     explicit RequestQueue(const SearchServer& search_server);
-    // СЃРґРµР»Р°РµРј "РѕР±РµСЂС‚РєРё" РґР»СЏ РІСЃРµС… РјРµС‚РѕРґРѕРІ РїРѕРёСЃРєР°, С‡С‚РѕР±С‹ СЃРѕС…СЂР°РЅСЏС‚СЊ СЂРµР·СѓР»СЊС‚Р°С‚С‹ РґР»СЏ РЅР°С€РµР№ СЃС‚Р°С‚РёСЃС‚РёРєРё
+    // сделаем "обертки" для всех методов поиска, чтобы сохранять результаты для нашей статистики
     template <typename DocumentPredicate>
     std::vector<Document> AddFindRequest(const std::string_view& raw_query, DocumentPredicate document_predicate);
     std::vector<Document> AddFindRequest(const std::string_view& raw_query, DocumentStatus status);

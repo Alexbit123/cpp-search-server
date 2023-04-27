@@ -18,16 +18,14 @@ std::vector<Document> ProcessQueriesJoined(const SearchServer& search_server,
 {
 	std::vector<std::vector<Document>> result_last = ProcessQueries(search_server, queries);
 	size_t size = 0;
-	for (auto i : result_last) {
-		size += i.size();
+	for (std::vector<Document>& Document : result_last) {
+		size += Document.size();
 	}
 	std::vector<Document> result;
 	result.reserve(size);
 	
-	for (auto& v : result_last) {
-		for (auto& i : v) {
-			result.push_back(i);
-		}
+	for (std::vector<Document>& Document : result_last) {
+		result.insert(result.end(), Document.begin(), Document.end());
 	}
 
 	return result;
