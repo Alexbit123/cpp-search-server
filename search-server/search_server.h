@@ -10,6 +10,7 @@
 #include <execution>
 #include <list>
 #include <future>
+#include <deque>
 
 const int MAX_RESULT_DOCUMENT_COUNT = 5;
 constexpr auto EPS = 1e-6;
@@ -74,7 +75,7 @@ private:
 	std::map<int, DocumentData> documents_;
 	std::map<int, std::map<std::string_view, double>> document_ids_freqs_;
 	std::set<int> document_ids_;
-	std::set<std::string> words;
+	std::deque<std::string> words;
 
 	bool IsStopWord(std::string_view word) const;
 
@@ -98,7 +99,7 @@ private:
 		std::vector<std::string_view> minus_words;
 	};
 
-	Query ParseQuery(std::string_view text, bool fl) const;
+	Query ParseQuery(std::string_view text, bool remove_duplicates) const;
 
 	// Existence required
 	double ComputeWordInverseDocumentFreq(std::string_view word) const;

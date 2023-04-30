@@ -17,16 +17,11 @@ void SearchServer::AddDocument(int document_id, std::string_view document, Docum
 	}
 
 	std::string str = static_cast<std::string>(document);
-	words.insert(str);
-	std::vector<std::string_view> container_words;
+	words.push_back(str);
 
-	for (std::string_view word : SplitIntoWordsNoStop(*words.find(str))) {
-		container_words.push_back(word);
-	}
+	const double inv_word_count = 1.0 / SplitIntoWordsNoStop(words.back()).size();
 
-	const double inv_word_count = 1.0 / container_words.size();
-
-	for (std::string_view word : container_words) {
+	for (std::string_view word : SplitIntoWordsNoStop(words.back())) {
 		word_to_document_freqs_[word][document_id] += inv_word_count;
 		document_ids_freqs_[document_id][word] += inv_word_count;
 	}
