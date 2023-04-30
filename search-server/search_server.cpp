@@ -18,9 +18,11 @@ void SearchServer::AddDocument(int document_id, std::string_view document, Docum
 
 	words.push_back(static_cast<std::string>(document));
 
-	const double inv_word_count = 1.0 / SplitIntoWordsNoStop(words.back()).size();
+	std::vector<std::string_view> container_words(SplitIntoWordsNoStop(words.back()));
 
-	for (std::string_view word : SplitIntoWordsNoStop(words.back())) {
+	const double inv_word_count = 1.0 / container_words.size();
+
+	for (std::string_view word : container_words) {
 		word_to_document_freqs_[word][document_id] += inv_word_count;
 		document_ids_freqs_[document_id][word] += inv_word_count;
 	}
