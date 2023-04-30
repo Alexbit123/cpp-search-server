@@ -16,8 +16,7 @@ void SearchServer::AddDocument(int document_id, std::string_view document, Docum
 		throw std::invalid_argument("Invalid document_id"s);
 	}
 
-	std::string str = static_cast<std::string>(document);
-	words.push_back(str);
+	words.push_back(static_cast<std::string>(document));
 
 	const double inv_word_count = 1.0 / SplitIntoWordsNoStop(words.back()).size();
 
